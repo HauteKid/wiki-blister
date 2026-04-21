@@ -1,22 +1,19 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { CardTile } from "../components/CardTile";
 import { loadCollection } from "../lib/storage";
 
-function subscribe(cb: () => void) {
-  window.addEventListener("storage", cb);
-  window.addEventListener("wiki-blister-updated", cb);
-  return () => {
-    window.removeEventListener("storage", cb);
-    window.removeEventListener("wiki-blister-updated", cb);
-  };
-}
-
-function getSnapshot() {
-  return loadCollection();
-}
-
 export function CollectionPage() {
-  const collection = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const [collection, setCollection] = useState(() => loadCollection());
+
+  useEffect(() => {
+    const sync = () => setCollection(loadCollection());
+    window.addEventListener("storage", sync);
+    window.addEventListener("wiki-blister-updated", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("wiki-blister-updated", sync);
+    };
+  }, []);
 
   if (collection.length === 0) {
     return (
