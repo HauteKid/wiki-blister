@@ -18,14 +18,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    const client = supabase;
+    if (!isSupabaseConfigured || !client) {
       setLoading(false);
       return;
     }
 
     let cancelled = false;
 
-    void supabase.auth
+    void client.auth
       .getSession()
       .then(({ data: { session: s } }) => {
         if (!cancelled) setSession(s);
@@ -39,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = client.auth.onAuthStateChange((_event, s) => {
       setSession(s);
     });
 
@@ -49,34 +50,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue | null>(() => {
+    const client = supabase;
+    if (!isSupabaseConfigured || !client) return null;
+    return {
       user: session?.user ?? null,
       session,
       loading,
       signIn: async (email, password) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await client.auth.signInWithPassword({ email, password });
         return { error: error ? new Error(error.message) : null };
       },
       signUp: async (email, password) => {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await client.auth.signUp({ email, password });
         return { error: error ? new Error(error.message) : null };
       },
       signOut: async () => {
-        await supabase.auth.signOut();
+        await client.auth.signOut();
       },
-    }),
-    [session, loading],
-  );
+    };
+  }, [session, loading]);
 
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || !value) {
     return (
       <div className="wb-app wb-app--bg-energy wb-app-surface wb-missing">
         <h1 className="wb-h1">Нужен Supabase</h1>
         <p className="wb-lead">
-          Скопируйте <code className="wb-code">.env.example</code> в <code className="wb-code">.env</code> и укажите{" "}
+          Локально: скопируйте <code className="wb-code">.env.example</code> в <code className="wb-code">.env</code> и укажите{" "}
           <code className="wb-code">VITE_SUPABASE_URL</code> и <code className="wb-code">VITE_SUPABASE_ANON_KEY</code> из панели
-          проекта. Выполните SQL из <code className="wb-code">supabase/schema.sql</code>.
+          Supabase. На Vercel добавьте те же имена в{" "}
+          <strong>Settings → Environment Variables</strong> и пересоберите деплой. Выполните SQL из{" "}
+          <code className="wb-code">supabase/schema.sql</code>.
         </p>
       </div>
     );

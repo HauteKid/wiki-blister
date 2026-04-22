@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getMskCalendarDate } from "../lib/moscow";
 import { normalizeWikiCard } from "../lib/rarity";
 import { mergeIntoCollection } from "../lib/storage";
-import { supabase } from "../lib/supabaseClient";
+import { requireSupabase } from "../lib/supabaseClient";
 import type { TodaysPack, WikiCard } from "../types";
 import { useAuth } from "./AuthContext";
 
@@ -69,11 +69,12 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       ]);
 
     (async () => {
+      const db = requireSupabase();
       setLoading(true);
       setError(null);
       try {
         const { data, error: selErr } = await withTimeout(
-          supabase.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
+          db.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
           loadDeadlineMs,
         );
 
@@ -81,12 +82,12 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
 
         if (!data) {
           const { error: insErr } = await withTimeout(
-            supabase.from("user_state").insert({ user_id: user.id }),
+            db.from("user_state").insert({ user_id: user.id }),
             loadDeadlineMs,
           );
           if (insErr && insErr.code !== "23505") throw insErr;
           const { data: again, error: againErr } = await withTimeout(
-            supabase.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
+            db.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
             loadDeadlineMs,
           );
           if (againErr) throw againErr;
@@ -101,7 +102,7 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
         if (pack && pack.mskDate !== today) {
           pack = null;
           await withTimeout(
-            supabase
+            db
               .from("user_state")
               .update({ todays_pack: null, updated_at: new Date().toISOString() })
               .eq("user_id", user.id),
@@ -126,10 +127,11 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
 
   const clearPackIfStaleForMskDate = useCallback(async (mskToday: string) => {
     if (!user) return;
+    const db = requireSupabase();
     const current = packRef.current;
     if (!current || current.mskDate === mskToday) return;
     setTodaysPack(null);
-    const { error: upErr } = await supabase
+    const { error: upErr } = await db
       .from("user_state")
       .update({ todays_pack: null, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
@@ -138,10 +140,11 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
 
   const afterOpenBlister = useCallback(async (mskDate: string, cards: WikiCard[]) => {
     if (!user) return;
+    const db = requireSupabase();
     setError(null);
     const merged = mergeIntoCollection(collectionRef.current, cards);
     const nextPack: TodaysPack = { mskDate, cards };
-    const { error: upErr } = await supabase
+    const { error: upErr } = await db
       .from("user_state")
       .update({
         collection: merged,
@@ -159,9 +162,10 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
 
   const resetAllProgress = useCallback(async () => {
     if (!user) return;
+    const db = requireSupabase();
     setError(null);
     const empty: WikiCard[] = [];
-    const { error: upErr } = await supabase
+    const { error: upErr } = await db
       .from("user_state")
       .update({
         collection: empty,
