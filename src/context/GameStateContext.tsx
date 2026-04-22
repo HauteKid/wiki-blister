@@ -56,26 +56,39 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
+    const loadDeadlineMs = 25_000;
+    const withTimeout = <T,>(p: PromiseLike<T>, ms: number): Promise<T> =>
+      Promise.race([
+        Promise.resolve(p),
+        new Promise<T>((_, rej) =>
+          window.setTimeout(
+            () => rej(new Error(`Нет ответа от базы за ${ms / 1000} с. Проверьте сеть или VPN.`)),
+            ms,
+          ),
+        ),
+      ]);
+
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: selErr } = await supabase
-          .from("user_state")
-          .select("collection,todays_pack")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data, error: selErr } = await withTimeout(
+          supabase.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
+          loadDeadlineMs,
+        );
 
         if (selErr) throw selErr;
 
         if (!data) {
-          const { error: insErr } = await supabase.from("user_state").insert({ user_id: user.id });
+          const { error: insErr } = await withTimeout(
+            supabase.from("user_state").insert({ user_id: user.id }),
+            loadDeadlineMs,
+          );
           if (insErr && insErr.code !== "23505") throw insErr;
-          const { data: again, error: againErr } = await supabase
-            .from("user_state")
-            .select("collection,todays_pack")
-            .eq("user_id", user.id)
-            .maybeSingle();
+          const { data: again, error: againErr } = await withTimeout(
+            supabase.from("user_state").select("collection,todays_pack").eq("user_id", user.id).maybeSingle(),
+            loadDeadlineMs,
+          );
           if (againErr) throw againErr;
           if (cancelled) return;
           setCollection(parseCollection(again?.collection));
@@ -87,10 +100,13 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
         let pack = data.todays_pack as TodaysPack | null;
         if (pack && pack.mskDate !== today) {
           pack = null;
-          await supabase
-            .from("user_state")
-            .update({ todays_pack: null, updated_at: new Date().toISOString() })
-            .eq("user_id", user.id);
+          await withTimeout(
+            supabase
+              .from("user_state")
+              .update({ todays_pack: null, updated_at: new Date().toISOString() })
+              .eq("user_id", user.id),
+            loadDeadlineMs,
+          );
         }
 
         if (cancelled) return;
