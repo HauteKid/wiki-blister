@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="wb-app wb-app--bg-energy wb-missing">
+      <div className="wb-app wb-app--bg-energy wb-app-surface wb-missing">
         <h1 className="wb-h1">Нужен Supabase</h1>
         <p className="wb-lead">
           Скопируйте <code className="wb-code">.env.example</code> в <code className="wb-code">.env</code> и укажите{" "}

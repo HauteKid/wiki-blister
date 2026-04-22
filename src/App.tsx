@@ -12,17 +12,20 @@ export default function App() {
   return (
     <AuthProvider>
       <div className="wb-app wb-app--bg-energy">
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<BlisterPage />} />
-              <Route path="/collection" element={<CollectionPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
+        {/* Слой поверх фона и noise (::before), иначе в части браузеров контент может не попасть в отрисовку */}
+        <div className="wb-app-surface">
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<BlisterPage />} />
+                <Route path="/collection" element={<CollectionPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
+          </Routes>
+        </div>
       </div>
     </AuthProvider>
   );

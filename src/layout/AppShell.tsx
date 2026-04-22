@@ -18,7 +18,7 @@ export function AppShell() {
   return (
     <GameStateProvider>
       <NavBar />
-      <main style={{ flex: 1 }}>
+      <main className="wb-main">
         <GameStateReady>
           <Outlet />
         </GameStateReady>

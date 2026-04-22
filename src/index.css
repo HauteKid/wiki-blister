@@ -50,17 +50,40 @@ body {
 
 #root {
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Оболочка приложения + варианты фона (ТЗ п.6: Глубина, Энергия, Фокус) */
 .wb-app {
   position: relative;
-  isolation: isolate;
-  min-height: 100dvh;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 100svh;
+  min-height: 100dvh;
   background: linear-gradient(165deg, var(--wb-bg-a) 0%, var(--wb-bg-b) 42%, var(--wb-bg-c) 100%);
   background-attachment: fixed;
+  color: var(--wb-text);
+}
+
+/* Весь интерактив и текст — над декоративным слоем */
+.wb-app-surface {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  min-height: 100dvh;
+  color: inherit;
+}
+
+.wb-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Глубина — спокойный многослойный градиент (по умолчанию) */
@@ -87,15 +110,16 @@ body {
   background-attachment: fixed;
 }
 
-/* Лёгкое зерно поверх фона приложения */
+/* Лёгкое зерно: только под контентом, без отрицательного z-index (ломает порядок в Safari / изоляции) */
 .wb-app::before {
   content: "";
   pointer-events: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  z-index: -1;
+  z-index: 0;
+  border-radius: inherit;
 }
 
 a {
