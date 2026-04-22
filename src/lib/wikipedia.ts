@@ -1,4 +1,5 @@
 import type { WikiCard } from "../types";
+import { applyNonCommonGuarantee, normalizeRarity, rarityFromPopularity } from "./rarity";
 
 const RU_WIKI = "https://ru.wikipedia.org";
 const PAGEVIEWS_BASE = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/ru.wikipedia/all-access";
@@ -9,6 +10,12 @@ type TopResponse = {
   items?: Array<{
     articles?: TopArticle[];
   }>;
+};
+
+export type PopularArticle = {
+  title: string;
+  rank: number;
+  views: number;
 };
 
 function decodeTitle(article: string): string {
@@ -36,7 +43,7 @@ function isLikelyBadTitle(article: string): boolean {
   return false;
 }
 
-async function fetchTopTitlesForDay(year: string, month: string, day: string): Promise<string[]> {
+async function fetchPopularArticlesForDay(year: string, month: string, day: string): Promise<PopularArticle[]> {
   const url = `${PAGEVIEWS_BASE}/${year}/${month}/${day}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`top ${res.status}`);
@@ -44,11 +51,15 @@ async function fetchTopTitlesForDay(year: string, month: string, day: string): P
   const articles = data.items?.[0]?.articles ?? [];
   return articles
     .filter((a) => !isLikelyBadTitle(a.article))
-    .map((a) => decodeTitle(a.article));
+    .map((a) => ({
+      title: decodeTitle(a.article),
+      rank: a.rank,
+      views: a.views,
+    }));
 }
 
-/** Берём топ просмотров за последний доступный день (данные обычно с задержкой 2–3 суток). */
-export async function fetchPopularTitlePool(maxDaysBack = 14): Promise<string[]> {
+/** Топ просмотров за последний доступный день — с рангом и числом просмотров. */
+export async function fetchPopularArticlePool(maxDaysBack = 14): Promise<PopularArticle[]> {
   const now = new Date();
   for (let back = 3; back <= maxDaysBack; back++) {
     const d = new Date(now.getTime() - back * 86400000);
@@ -56,8 +67,8 @@ export async function fetchPopularTitlePool(maxDaysBack = 14): Promise<string[]>
     const m = String(d.getUTCMonth() + 1).padStart(2, "0");
     const day = String(d.getUTCDate()).padStart(2, "0");
     try {
-      const titles = await fetchTopTitlesForDay(y, m, day);
-      if (titles.length >= 20) return titles;
+      const pool = await fetchPopularArticlesForDay(y, m, day);
+      if (pool.length >= 20) return pool;
     } catch {
       /* пробуем предыдущий день */
     }
@@ -89,23 +100,27 @@ async function fetchSummary(title: string): Promise<WikiCard | null> {
     extract,
     thumbnailUrl: s.thumbnail?.source ?? null,
     articleUrl: url,
-    openedMskDate: "", // заполняет вызывающий
+    openedMskDate: "",
+    rarity: "common",
   };
 }
 
 export async function drawFiveCards(mskDate: string): Promise<WikiCard[]> {
-  const pool = await fetchPopularTitlePool();
+  const pool = await fetchPopularArticlePool();
   const shuffled = shuffle(pool);
   const picked: WikiCard[] = [];
   const tried = new Set<string>();
+  const rankByPageId = new Map<number, number>();
 
-  for (const title of shuffled) {
+  for (const entry of shuffled) {
     if (picked.length >= 5) break;
-    if (tried.has(title)) continue;
-    tried.add(title);
-    const card = await fetchSummary(title);
+    if (tried.has(entry.title)) continue;
+    tried.add(entry.title);
+    const card = await fetchSummary(entry.title);
     if (card) {
       card.openedMskDate = mskDate;
+      card.rarity = rarityFromPopularity(entry.rank, entry.views);
+      rankByPageId.set(card.pageid, entry.rank);
       picked.push(card);
     }
     if (tried.size > 80 && picked.length < 5) break;
@@ -114,5 +129,11 @@ export async function drawFiveCards(mskDate: string): Promise<WikiCard[]> {
   if (picked.length < 5) {
     throw new Error("Не хватило подходящих статей для полного блистера. Попробуйте ещё раз.");
   }
+
+  applyNonCommonGuarantee(picked, rankByPageId);
+  for (const c of picked) {
+    c.rarity = normalizeRarity(c.rarity);
+  }
+
   return picked;
 }

@@ -1,31 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CardLightbox } from "../components/CardLightbox";
 import { CardTile } from "../components/CardTile";
+import { useGameState } from "../context/GameStateContext";
 import { getMskCalendarDate, formatCountdown, msUntilNextMskMidnight } from "../lib/moscow";
-import {
-  loadCollection,
-  loadTodaysPack,
-  mergeIntoCollection,
-  reconcileTodaysPackWithMskDate,
-  saveCollection,
-  saveTodaysPack,
-} from "../lib/storage";
-import { drawFiveCards } from "../lib/wikipedia";
 import type { WikiCard } from "../types";
+import { drawFiveCards } from "../lib/wikipedia";
 
 export function BlisterPage() {
+  const { todaysPack, clearPackIfStaleForMskDate, afterOpenBlister, error: cloudError } = useGameState();
   const [mskToday, setMskToday] = useState(() => getMskCalendarDate());
-  const [pack, setPack] = useState<WikiCard[] | null>(() => reconcileTodaysPackWithMskDate(getMskCalendarDate())?.cards ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdownMs, setCountdownMs] = useState(() => msUntilNextMskMidnight());
+  const [zoomed, setZoomed] = useState<WikiCard | null>(null);
+
+  const pack = useMemo(() => {
+    if (!todaysPack || todaysPack.mskDate !== mskToday) return null;
+    return todaysPack.cards;
+  }, [todaysPack, mskToday]);
 
   const refreshMskDate = useCallback(() => {
     const today = getMskCalendarDate();
     setMskToday(today);
-    const valid = reconcileTodaysPackWithMskDate(today);
-    setPack(valid?.cards ?? null);
+    void clearPackIfStaleForMskDate(today);
     setCountdownMs(msUntilNextMskMidnight());
-  }, []);
+  }, [clearPackIfStaleForMskDate]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -36,26 +35,16 @@ export function BlisterPage() {
     return () => window.clearInterval(id);
   }, [mskToday, refreshMskDate]);
 
-  const openedToday = useMemo(() => {
-    const stored = loadTodaysPack();
-    return stored?.mskDate === mskToday;
-  }, [mskToday, pack]);
+  const openedToday = todaysPack?.mskDate === mskToday;
 
   const openBlister = async () => {
     setError(null);
     const today = getMskCalendarDate();
-    if (loadTodaysPack()?.mskDate === today) {
-      setPack(loadTodaysPack()!.cards);
-      return;
-    }
+    if (todaysPack?.mskDate === today) return;
     setLoading(true);
     try {
       const cards = await drawFiveCards(today);
-      saveTodaysPack({ mskDate: today, cards });
-      const merged = mergeIntoCollection(loadCollection(), cards);
-      saveCollection(merged);
-      window.dispatchEvent(new Event("wiki-blister-updated"));
-      setPack(cards);
+      await afterOpenBlister(today, cards);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Что-то пошло не так");
     } finally {
@@ -63,72 +52,58 @@ export function BlisterPage() {
     }
   };
 
+  const displayError = error ?? cloudError;
+
   return (
-    <div style={{ padding: "16px 16px 32px", maxWidth: 560, margin: "0 auto" }}>
+    <div className="wb-page">
       <header style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: "0 0 8px", fontSize: 26, color: "#f8fafc" }}>Дневной блистер</h1>
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: 15 }}>
+        <h1 className="wb-h1">Дневной блистер</h1>
+        <p className="wb-lead">
           Раз в сутки по московскому времени — пять карточек из популярных статей русской Википедии. Не открыл вовремя — пак за вчера
           не вернуть.
         </p>
       </header>
 
-      <section
-        style={{
-          background: "rgba(30, 41, 59, 0.5)",
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
-          border: "1px solid rgba(148, 163, 184, 0.12)",
-        }}
-      >
-        <p style={{ margin: "0 0 6px", color: "#94a3b8", fontSize: 13 }}>Сегодня по Москве</p>
-        <p style={{ margin: "0 0 12px", fontSize: 18, color: "#e2e8f0" }}>{mskToday}</p>
-        <p style={{ margin: "0 0 4px", color: "#94a3b8", fontSize: 13 }}>До нового блистера</p>
-        <p style={{ margin: 0, fontFamily: "ui-monospace, monospace", fontSize: 22, color: "#7dd3fc" }}>
-          {formatCountdown(countdownMs)}
+      <section className="wb-panel">
+        <p className="wb-muted" style={{ margin: "0 0 6px" }}>
+          Сегодня по Москве
         </p>
+        <p style={{ margin: "0 0 12px", fontSize: "1.05rem", fontWeight: 600, color: "var(--wb-text)" }}>{mskToday}</p>
+        <p className="wb-muted" style={{ margin: "0 0 4px" }}>
+          До нового блистера
+        </p>
+        <p className="wb-countdown">{formatCountdown(countdownMs)}</p>
       </section>
 
       {!openedToday && (
         <button
           type="button"
+          className="wb-btn wb-btn--primary wb-btn--block"
+          style={{ marginBottom: 20 }}
           onClick={() => void openBlister()}
           disabled={loading}
-          style={{
-            width: "100%",
-            padding: "16px 20px",
-            borderRadius: 14,
-            border: "none",
-            background: loading ? "#475569" : "linear-gradient(135deg, #0ea5e9, #6366f1)",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 17,
-            marginBottom: 20,
-            boxShadow: loading ? "none" : "0 8px 24px rgba(14, 165, 233, 0.35)",
-          }}
         >
           {loading ? "Открываем…" : "Открыть блистер"}
         </button>
       )}
 
-      {openedToday && pack && (
-        <p style={{ color: "#86efac", margin: "0 0 16px", fontSize: 15 }}>Ты уже открыл сегодняшний пак. Завтра после полуночи по Москве — новый.</p>
-      )}
+      {openedToday && pack && <p className="wb-status-ok">Ты уже открыл сегодняшний пак. Завтра после полуночи по Москве — новый.</p>}
 
-      {error && (
-        <p style={{ color: "#fca5a5", margin: "0 0 16px" }} role="alert">
-          {error}
+      {displayError && (
+        <p className="wb-status-err" role="alert">
+          {displayError}
         </p>
       )}
 
       {pack && pack.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="wb-card-grid">
           {pack.map((c) => (
-            <CardTile key={c.pageid} card={c} />
+            <CardTile key={c.pageid} card={c} onActivate={() => setZoomed(c)} />
           ))}
         </div>
       )}
+
+      <CardLightbox card={zoomed} onClose={() => setZoomed(null)} />
     </div>
   );
 }

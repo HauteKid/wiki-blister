@@ -1,9 +1,36 @@
+/*
+ * Wiki Blister — UI Design Specification (wiki_blister_ui_tz_fixed.pdf)
+ * Moodboard: контрастный, собранный, тактильный, динамичный, чистый, уверенный, коллекционный.
+ * Ощущение: игровая подача знаний с акцентом на ценность карточек.
+ * Glow в UI: ориентир 10–25% интенсивности; blur до 24px; без cyberpunk-перегруза.
+ */
+
 :root {
-  font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --wb-bg-a: #0b0f1a;
+  --wb-bg-b: #121a2f;
+  --wb-bg-c: #1a2342;
+  --wb-surface: #0f1628;
+  --wb-border: #2a3554;
+  --wb-primary: #5e7bff;
+  --wb-cyan: #00d1ff;
+  --wb-mint: #7cffb2;
+  --wb-pink: #ff6b9a;
+  --wb-text: #e8ecf7;
+  --wb-text-muted: #a8b1c7;
+  --wb-success: #7cffb2;
+  --wb-error: #ff6b9a;
+  --wb-blur: 24px;
+  --wb-glow-soft: 0 0 20px;
+  --wb-radius-lg: 18px;
+  --wb-radius-md: 14px;
+  --wb-radius-sm: 12px;
+  --wb-font: "Inter", system-ui, "Segoe UI", sans-serif;
+  --wb-font-display: "Manrope", "Inter", system-ui, sans-serif;
+  color: var(--wb-text);
+  background: var(--wb-bg-a);
+  font-family: var(--wb-font);
   line-height: 1.5;
   font-weight: 400;
-  color: #e2e8f0;
-  background: #0f172a;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,15 +45,61 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  background: linear-gradient(165deg, #0f172a 0%, #1e1b4b 45%, #0f172a 100%);
+  background: var(--wb-bg-a);
 }
 
 #root {
   min-height: 100dvh;
 }
 
+/* Оболочка приложения + варианты фона (ТЗ п.6: Глубина, Энергия, Фокус) */
+.wb-app {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(165deg, var(--wb-bg-a) 0%, var(--wb-bg-b) 42%, var(--wb-bg-c) 100%);
+  background-attachment: fixed;
+}
+
+/* Глубина — спокойный многослойный градиент (по умолчанию) */
+.wb-app--bg-depth {
+  background: linear-gradient(165deg, var(--wb-bg-a) 0%, var(--wb-bg-b) 42%, var(--wb-bg-c) 100%);
+  background-attachment: fixed;
+}
+
+/* Энергия — лёгкие «ореолы» вторичных акцентов (~12–18%) */
+.wb-app--bg-energy {
+  background:
+    radial-gradient(ellipse 85% 55% at 15% 12%, color-mix(in srgb, var(--wb-cyan) 16%, transparent) 0%, transparent 52%),
+    radial-gradient(ellipse 75% 50% at 88% 78%, color-mix(in srgb, var(--wb-pink) 12%, transparent) 0%, transparent 48%),
+    radial-gradient(ellipse 60% 40% at 70% 18%, color-mix(in srgb, var(--wb-mint) 10%, transparent) 0%, transparent 45%),
+    linear-gradient(165deg, var(--wb-bg-a) 0%, var(--wb-bg-b) 42%, var(--wb-bg-c) 100%);
+  background-attachment: fixed;
+}
+
+/* Фокус — виньетка к центру, контент «ближе» */
+.wb-app--bg-focus {
+  background:
+    radial-gradient(ellipse 95% 90% at 50% 42%, transparent 0%, color-mix(in srgb, var(--wb-bg-a) 72%, black) 100%),
+    linear-gradient(165deg, var(--wb-bg-a) 0%, var(--wb-bg-b) 42%, var(--wb-bg-c) 100%);
+  background-attachment: fixed;
+}
+
+/* Лёгкое зерно поверх фона приложения */
+.wb-app::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: -1;
+}
+
 a {
-  color: #7dd3fc;
+  color: var(--wb-cyan);
   text-decoration: none;
 }
 
@@ -39,7 +112,749 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 img {
   max-width: 100%;
   display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--wb-primary);
+  outline-offset: 2px;
+}
+
+.wb-page {
+  padding: 16px 16px 32px;
+  max-width: min(560px, 100%);
+  margin: 0 auto;
+}
+
+.wb-page.wb-page--auth {
+  padding: 32px 16px 40px;
+  max-width: min(400px, 100%);
+}
+
+.wb-h1 {
+  margin: 0 0 8px;
+  font-family: var(--wb-font-display);
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--wb-text);
+}
+
+.wb-lead {
+  margin: 0;
+  color: var(--wb-text-muted);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.wb-muted {
+  color: var(--wb-text-muted);
+  font-size: 0.875rem;
+}
+
+.wb-panel {
+  background: color-mix(in srgb, var(--wb-surface) 72%, transparent);
+  backdrop-filter: blur(var(--wb-blur));
+  -webkit-backdrop-filter: blur(var(--wb-blur));
+  border: 1px solid color-mix(in srgb, var(--wb-border) 85%, white);
+  border-radius: var(--wb-radius-lg);
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.wb-countdown {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: clamp(1.15rem, 4vw, 1.4rem);
+  font-weight: 600;
+  color: var(--wb-cyan);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--wb-cyan) 18%, transparent);
+}
+
+.wb-status-ok {
+  color: var(--wb-mint);
+  margin: 0 0 16px;
+  font-size: 0.94rem;
+}
+
+.wb-status-err {
+  color: var(--wb-error);
+  margin: 0 0 16px;
+  font-size: 0.94rem;
+}
+
+/* Liquid glass кнопки: плоские, без скосов */
+.wb-btn {
+  min-height: 44px;
+  padding: 12px 20px;
+  border-radius: var(--wb-radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  border: 1px solid color-mix(in srgb, white 14%, transparent);
+  background: color-mix(in srgb, white 6%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--wb-text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.wb-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, white 10%, transparent);
+  border-color: color-mix(in srgb, var(--wb-primary) 35%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+    var(--wb-glow-soft) color-mix(in srgb, var(--wb-primary) 20%, transparent);
+}
+
+.wb-btn--primary {
+  border-color: color-mix(in srgb, var(--wb-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--wb-primary) 22%, transparent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.wb-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wb-primary) 32%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 18%, transparent),
+    var(--wb-glow-soft) color-mix(in srgb, var(--wb-primary) 22%, transparent);
+}
+
+.wb-btn--primary:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.wb-btn--block {
+  width: 100%;
+}
+
+.wb-btn--secondary {
+  border-color: color-mix(in srgb, var(--wb-border) 90%, white);
+  background: color-mix(in srgb, var(--wb-surface) 55%, transparent);
+}
+
+.wb-btn--danger {
+  margin-top: 28px;
+  max-width: 320px;
+  width: 100%;
+  border-color: color-mix(in srgb, var(--wb-error) 40%, transparent);
+  background: color-mix(in srgb, var(--wb-error) 12%, transparent);
+  color: color-mix(in srgb, var(--wb-error) 92%, white);
+}
+
+.wb-btn--danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--wb-error) 55%, transparent);
+  box-shadow: var(--wb-glow-soft) color-mix(in srgb, var(--wb-error) 15%, transparent);
+}
+
+.wb-btn--danger:disabled {
+  opacity: 0.5;
+}
+
+.wb-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wb-form-label > span {
+  color: var(--wb-text-muted);
+  font-size: 0.8125rem;
+}
+
+.wb-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wb-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: var(--wb-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--wb-border) 80%, white);
+  background: color-mix(in srgb, var(--wb-surface) 65%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--wb-text);
+  font-size: 1rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+}
+
+.wb-input:focus {
+  outline: none;
+}
+
+/* focus-visible обязателен по ТЗ; мышью — без лишнего кольца */
+.wb-input:focus-visible {
+  outline: 2px solid var(--wb-primary);
+  outline-offset: 2px;
+  border-color: color-mix(in srgb, var(--wb-primary) 50%, var(--wb-border));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--wb-primary) 32%, transparent);
+}
+
+.wb-input--password {
+  padding-right: 48px;
+}
+
+.wb-password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wb-text-muted);
+}
+
+.wb-password-toggle:hover {
+  color: var(--wb-text);
+  background: color-mix(in srgb, white 6%, transparent);
+}
+
+.wb-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Навигация — glass */
+.wb-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid color-mix(in srgb, var(--wb-border) 70%, transparent);
+  background: color-mix(in srgb, var(--wb-bg-a) 55%, transparent);
+  backdrop-filter: blur(var(--wb-blur));
+  -webkit-backdrop-filter: blur(var(--wb-blur));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.wb-nav-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: var(--wb-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--wb-text-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.wb-nav-link:hover {
+  color: var(--wb-text);
+  background: color-mix(in srgb, white 6%, transparent);
+  text-decoration: none;
+}
+
+.wb-nav-link--active {
+  color: var(--wb-text);
+  background: color-mix(in srgb, var(--wb-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--wb-primary) 28%, transparent);
+}
+
+.wb-nav-email {
+  margin-left: auto;
+  color: color-mix(in srgb, var(--wb-text-muted) 85%, transparent);
+  font-size: 0.8125rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .wb-page {
+    padding: 24px 24px 40px;
+  }
+
+  .wb-h1 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Сетка карточек: 2 в ряд (коллекция и блистер) */
+.wb-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .wb-card-grid {
+    gap: 14px;
+  }
+}
+
+/* TCG-карточка (референс: рамки по редкости; позже можно заменить на PNG-оверлеи) */
+.wb-tcg {
+  position: relative;
+  border-radius: 16px;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.45));
+}
+
+.wb-tcg[role="button"] {
+  cursor: pointer;
+}
+
+.wb-tcg[role="button"]:focus-visible {
+  outline: 2px solid var(--wb-primary);
+  outline-offset: 3px;
+}
+
+.wb-tcg--zoom {
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+  filter: drop-shadow(0 12px 40px rgba(0, 0, 0, 0.55));
+}
+
+.wb-tcg__frame {
+  position: relative;
+  border-radius: 14px;
+  padding: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--wb-surface) 95%, #fff) 0%, var(--wb-surface) 100%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wb-tcg__art,
+.wb-tcg__ribbon,
+.wb-tcg__textbox,
+.wb-tcg__link {
+  position: relative;
+  z-index: 1;
+}
+
+.wb-tcg__wiki-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--wb-font-display);
+  font-weight: 800;
+  font-size: 0.75rem;
+  color: #fff;
+  background: linear-gradient(145deg, #334155, #0f172a);
+  border: 2px solid color-mix(in srgb, white 25%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.wb-tcg--zoom .wb-tcg__wiki-badge {
+  width: 34px;
+  height: 34px;
+  font-size: 0.85rem;
+}
+
+.wb-tcg__rarity-pill {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  z-index: 3;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 6px;
+  border-radius: 6px;
+  line-height: 1.2;
+  max-width: calc(100% - 52px);
+  text-align: center;
+  border: 1px solid color-mix(in srgb, white 15%, transparent);
+  background: rgba(15, 22, 40, 0.88);
+  color: var(--wb-text);
+}
+
+.wb-tcg--zoom .wb-tcg__rarity-pill {
+  font-size: 0.65rem;
+  padding: 4px 8px;
+}
+
+.wb-tcg__rarity-pill--common {
+  color: #cbd5e1;
+}
+.wb-tcg__rarity-pill--rare {
+  color: #7dd3fc;
+}
+.wb-tcg__rarity-pill--epic {
+  color: #d8b4fe;
+}
+.wb-tcg__rarity-pill--legendary {
+  color: #fcd34d;
+}
+.wb-tcg__rarity-pill--mythic {
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.2), rgba(244, 114, 182, 0.25), rgba(167, 139, 250, 0.2));
+  color: #fce7f3;
+}
+
+.wb-tcg__art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0a0f1a;
+  flex-shrink: 0;
+}
+
+.wb-tcg--zoom .wb-tcg__art {
+  aspect-ratio: 16 / 10;
+}
+
+.wb-tcg__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wb-tcg__art-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: var(--wb-text-muted);
+  text-align: center;
+  padding: 8px;
+}
+
+.wb-tcg--zoom .wb-tcg__art-placeholder {
+  font-size: 0.8rem;
+}
+
+.wb-tcg__ribbon {
+  margin-top: 6px;
+  padding: 5px 6px;
+  background: linear-gradient(180deg, rgba(15, 22, 40, 0.95), rgba(15, 22, 40, 0.88));
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, white 8%, transparent);
+  clip-path: polygon(2% 0, 98% 0, 100% 50%, 98% 100%, 2% 100%, 0 50%);
+}
+
+.wb-tcg__title {
+  margin: 0;
+  font-family: var(--wb-font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--wb-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wb-tcg--zoom .wb-tcg__title {
+  font-size: 1rem;
+  -webkit-line-clamp: 3;
+}
+
+.wb-tcg__textbox {
+  margin-top: 5px;
+  flex: 1;
+  padding: 6px 5px 22px;
+  background: repeating-linear-gradient(
+    -8deg,
+    rgba(15, 22, 40, 0.55),
+    rgba(15, 22, 40, 0.55) 2px,
+    rgba(30, 41, 59, 0.35) 2px,
+    rgba(30, 41, 59, 0.35) 4px
+  );
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--wb-border) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.wb-tcg__extract {
+  margin: 0;
+  font-size: 0.58rem;
+  line-height: 1.35;
+  color: var(--wb-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.wb-tcg--zoom .wb-tcg__extract {
+  font-size: 0.82rem;
+  -webkit-line-clamp: 6;
+}
+
+.wb-tcg__tag {
+  align-self: center;
+  font-size: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wb-surface) 80%, var(--wb-primary));
+  color: var(--wb-text-muted);
+  border: 1px solid color-mix(in srgb, white 10%, transparent);
+}
+
+.wb-tcg--zoom .wb-tcg__tag {
+  font-size: 0.65rem;
+}
+
+.wb-tcg__gem {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  z-index: 2;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.wb-tcg--zoom .wb-tcg__gem {
+  width: 12px;
+  height: 12px;
+  bottom: 44px;
+}
+
+.wb-tcg__link {
+  margin-top: 4px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--wb-cyan);
+  text-align: center;
+  padding: 4px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--wb-cyan) 8%, transparent);
+}
+
+.wb-tcg--zoom .wb-tcg__link {
+  font-size: 0.85rem;
+  padding: 8px;
+}
+
+/* Рамки по редкости */
+.wb-tcg--common .wb-tcg__frame {
+  box-shadow:
+    0 0 0 2px #3d4556,
+    0 0 0 4px #252b3a,
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.wb-tcg--common .wb-tcg__gem {
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  color: #cbd5e1;
+}
+
+.wb-tcg--rare .wb-tcg__frame {
+  box-shadow:
+    0 0 0 2px #2563eb,
+    0 0 0 4px #1e3a5f,
+    0 0 18px color-mix(in srgb, var(--wb-cyan) 22%, transparent),
+    inset 0 1px 0 rgba(125, 211, 252, 0.2);
+}
+
+.wb-tcg--rare .wb-tcg__gem {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: #38bdf8;
+}
+
+.wb-tcg--epic .wb-tcg__frame {
+  box-shadow:
+    0 0 0 2px #7c3aed,
+    0 0 0 4px #3b1f5c,
+    0 0 20px color-mix(in srgb, #a78bfa 24%, transparent),
+    inset 0 1px 0 rgba(216, 180, 254, 0.18);
+}
+
+.wb-tcg--epic .wb-tcg__gem {
+  background: linear-gradient(135deg, #c084fc, #7c3aed);
+  color: #c084fc;
+}
+
+.wb-tcg--legendary .wb-tcg__frame {
+  box-shadow:
+    0 0 0 2px #d97706,
+    0 0 0 4px #713f12,
+    0 0 22px color-mix(in srgb, #fbbf24 26%, transparent),
+    inset 0 1px 0 rgba(253, 230, 138, 0.25);
+}
+
+.wb-tcg--legendary .wb-tcg__frame::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 42%;
+  height: 38%;
+  background: linear-gradient(225deg, color-mix(in srgb, #fbbf24 35%, transparent), transparent 65%);
+  pointer-events: none;
+  border-radius: 0 12px 0 0;
+  z-index: 0;
+}
+
+.wb-tcg--legendary .wb-tcg__gem {
+  background: linear-gradient(135deg, #fbbf24, #ea580c);
+  color: #fbbf24;
+}
+
+.wb-tcg--mythic {
+  padding: 3px;
+  border-radius: 17px;
+  background: linear-gradient(
+    115deg,
+    var(--wb-cyan),
+    var(--wb-pink),
+    var(--wb-primary),
+    var(--wb-mint),
+    var(--wb-cyan)
+  );
+  background-size: 400% 100%;
+  animation: wb-tcg-mythic-shell 5s linear infinite;
+  box-shadow: 0 0 26px color-mix(in srgb, var(--wb-pink) 20%, transparent);
+}
+
+.wb-tcg--mythic .wb-tcg__frame {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+.wb-tcg--mythic .wb-tcg__gem {
+  background: linear-gradient(135deg, #f472b6, #22d3ee, #a78bfa);
+  background-size: 200% 200%;
+  animation: wb-tcg-mythic-gem 3s ease infinite;
+  color: #f9a8d4;
+}
+
+@keyframes wb-tcg-mythic-shell {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes wb-tcg-mythic-gem {
+  0%,
+  100% {
+    background-position: 0% 40%;
+  }
+  50% {
+    background-position: 100% 60%;
+  }
+}
+
+/* Lightbox */
+.wb-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--wb-bg-a) 75%, black);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.wb-lightbox__inner {
+  max-height: min(92dvh, 900px);
+  overflow-y: auto;
+  width: 100%;
+  max-width: 400px;
+  animation: wb-lightbox-pop 0.22s ease-out;
+}
+
+@keyframes wb-lightbox-pop {
+  from {
+    transform: scale(0.92);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.wb-lightbox__close {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 201;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--wb-text);
+  background: color-mix(in srgb, white 10%, transparent);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.wb-lightbox__close:hover {
+  background: color-mix(in srgb, white 16%, transparent);
+}
+
+.wb-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wb-missing {
+  padding: 24px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.wb-code {
+  color: var(--wb-cyan);
+  font-size: 0.9em;
 }

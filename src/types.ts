@@ -1,3 +1,5 @@
+export type CardRarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+
 export type WikiCard = {
   pageid: number;
   title: string;
@@ -6,6 +8,8 @@ export type WikiCard = {
   articleUrl: string;
   /** Календарная дата по Москве (YYYY-MM-DD), когда карточка попала в коллекцию */
   openedMskDate: string;
+  /** Редкость; для старых записей без поля подразумевается common */
+  rarity?: CardRarity;
 };
 
 export type TodaysPack = {

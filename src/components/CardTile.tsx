@@ -1,69 +1,76 @@
-import type { WikiCard } from "../types";
+import type { CSSProperties } from "react";
+import type { CardRarity, WikiCard } from "../types";
+import { normalizeRarity, RARITY_LABEL } from "../lib/rarity";
 
-export function CardTile({ card, compact }: { card: WikiCard; compact?: boolean }) {
+type Variant = "grid" | "zoom";
+
+type Props = {
+  card: WikiCard;
+  /** Сетка (по умолчанию) или крупный вид в lightbox */
+  variant?: Variant;
+  onActivate?: () => void;
+};
+
+function rarityClass(r: CardRarity): string {
+  return `wb-tcg--${r}`;
+}
+
+export function CardTile({ card, variant = "grid", onActivate }: Props) {
+  const rarity = normalizeRarity(card.rarity);
+  const interactive = Boolean(onActivate) && variant === "grid";
+
   return (
     <article
-      style={{
-        background: "rgba(30, 41, 59, 0.75)",
-        borderRadius: 16,
-        overflow: "hidden",
-        border: "1px solid rgba(148, 163, 184, 0.15)",
-        display: "flex",
-        flexDirection: "column",
-        minHeight: compact ? undefined : 280,
-      }}
+      className={`wb-tcg ${rarityClass(rarity)}${variant === "zoom" ? " wb-tcg--zoom" : ""}`}
+      style={{ "--wb-tcg-rarity": rarity } as CSSProperties}
+      onClick={interactive ? onActivate : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onActivate?.();
+              }
+            }
+          : undefined
+      }
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? `Открыть карточку: ${card.title}` : undefined}
     >
-      <div
-        style={{
-          aspectRatio: "16 / 9",
-          background: "#1e293b",
-          overflow: "hidden",
-        }}
-      >
-        {card.thumbnailUrl ? (
-          <img
-            src={card.thumbnailUrl}
-            alt=""
-            loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <div
-            style={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#64748b",
-              fontSize: 14,
-              padding: 16,
-              textAlign: "center",
-            }}
-          >
-            Нет иллюстрации в статье
-          </div>
-        )}
-      </div>
-      <div style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: compact ? 16 : 18, lineHeight: 1.25, color: "#f1f5f9" }}>
-          {card.title}
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 14,
-            color: "#cbd5e1",
-            flex: 1,
-            display: "-webkit-box",
-            WebkitLineClamp: compact ? 3 : 4,
-            WebkitBoxOrient: "vertical" as const,
-            overflow: "hidden",
-          }}
+      <div className="wb-tcg__frame">
+        <span className="wb-tcg__wiki-badge" title="Википедия" aria-hidden>
+          W
+        </span>
+        <span className={`wb-tcg__rarity-pill wb-tcg__rarity-pill--${rarity}`}>{RARITY_LABEL[rarity]}</span>
+
+        <div className="wb-tcg__art">
+          {card.thumbnailUrl ? (
+            <img src={card.thumbnailUrl} alt="" loading="lazy" className="wb-tcg__img" />
+          ) : (
+            <div className="wb-tcg__art-placeholder">Нет иллюстрации</div>
+          )}
+        </div>
+
+        <div className="wb-tcg__ribbon">
+          <h2 className="wb-tcg__title">{card.title}</h2>
+        </div>
+
+        <div className="wb-tcg__textbox">
+          <p className="wb-tcg__extract">{card.extract}</p>
+          <span className="wb-tcg__tag">Википедия</span>
+        </div>
+
+        <span className={`wb-tcg__gem wb-tcg__gem--${rarity}`} aria-hidden />
+
+        <a
+          className="wb-tcg__link"
+          href={card.articleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
         >
-          {card.extract}
-        </p>
-        <a href={card.articleUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14 }}>
-          Читать в Википедии →
+          Читать статью →
         </a>
       </div>
     </article>

@@ -1,40 +1,50 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CardLightbox } from "../components/CardLightbox";
 import { CardTile } from "../components/CardTile";
-import { loadCollection } from "../lib/storage";
+import { useGameState } from "../context/GameStateContext";
+import type { WikiCard } from "../types";
 
 export function CollectionPage() {
-  const [collection, setCollection] = useState(() => loadCollection());
+  const { collection, error } = useGameState();
+  const [zoomed, setZoomed] = useState<WikiCard | null>(null);
 
-  useEffect(() => {
-    const sync = () => setCollection(loadCollection());
-    window.addEventListener("storage", sync);
-    window.addEventListener("wiki-blister-updated", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("wiki-blister-updated", sync);
-    };
-  }, []);
-
-  if (collection.length === 0) {
+  if (error && collection.length === 0) {
     return (
-      <div style={{ padding: "24px 16px", maxWidth: 560, margin: "0 auto" }}>
-        <h1 style={{ margin: "0 0 12px", fontSize: 24, color: "#f8fafc" }}>Коллекция</h1>
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: 16 }}>
-          Пока пусто. Открой блистер на главной — карточки появятся здесь.
+      <div className="wb-page">
+        <h1 className="wb-h1">Коллекция</h1>
+        <p className="wb-status-err" role="alert">
+          {error}
         </p>
       </div>
     );
   }
 
+  if (collection.length === 0) {
+    return (
+      <div className="wb-page">
+        <h1 className="wb-h1">Коллекция</h1>
+        <p className="wb-lead">Пока пусто. Открой блистер на главной — карточки появятся здесь.</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "16px 16px 32px", maxWidth: 560, margin: "0 auto" }}>
-      <h1 style={{ margin: "0 0 8px", fontSize: 24, color: "#f8fafc" }}>Коллекция</h1>
-      <p style={{ margin: "0 0 20px", color: "#94a3b8" }}>Всего карточек: {collection.length}</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="wb-page">
+      <h1 className="wb-h1">Коллекция</h1>
+      <p className="wb-muted" style={{ margin: "0 0 20px", fontSize: "1rem" }}>
+        Всего карточек: {collection.length}
+      </p>
+      {error && (
+        <p className="wb-status-err" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="wb-card-grid">
         {collection.map((c) => (
-          <CardTile key={c.pageid} card={c} compact />
+          <CardTile key={c.pageid} card={c} onActivate={() => setZoomed(c)} />
         ))}
       </div>
+      <CardLightbox card={zoomed} onClose={() => setZoomed(null)} />
     </div>
   );
 }
