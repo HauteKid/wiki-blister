@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { enrichWikiCardsCategoriesMissing } from "../lib/cardCategory";
 import { getMskCalendarDate } from "../lib/moscow";
 import { normalizeWikiCard } from "../lib/rarity";
 import { mergeIntoCollection } from "../lib/storage";
@@ -111,8 +112,39 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (cancelled) return;
-        setCollection(parseCollection(data.collection));
-        setTodaysPack(normalizeTodaysPack(pack));
+
+        let coll = parseCollection(data.collection);
+        let packNorm = normalizeTodaysPack(pack);
+
+        if (!cancelled && (coll.length > 0 || (packNorm?.cards.length ?? 0) > 0)) {
+          const rColl = await enrichWikiCardsCategoriesMissing(coll);
+          coll = rColl.next;
+          let packPatched = false;
+          if (packNorm && packNorm.cards.length > 0) {
+            const rPack = await enrichWikiCardsCategoriesMissing(packNorm.cards);
+            if (rPack.patched) {
+              packNorm = { ...packNorm, cards: rPack.next };
+              packPatched = true;
+            }
+          }
+          if (!cancelled && (rColl.patched || packPatched)) {
+            await withTimeout(
+              db
+                .from("user_state")
+                .update({
+                  collection: coll,
+                  todays_pack: packNorm,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("user_id", user.id),
+              loadDeadlineMs,
+            );
+          }
+        }
+
+        if (cancelled) return;
+        setCollection(coll);
+        setTodaysPack(packNorm);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить данные");
       } finally {

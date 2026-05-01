@@ -1,13 +1,13 @@
 import type { WikiCard } from "../types";
-import { maxRarity, normalizeRarity } from "./rarity";
+import { maxRarity, normalizeRarity, normalizeWikiCard } from "./rarity";
 
 export function mergeIntoCollection(existing: WikiCard[], incoming: WikiCard[]): WikiCard[] {
   const byId = new Map<number, WikiCard>();
   for (const c of existing) {
-    byId.set(c.pageid, { ...c, rarity: normalizeRarity(c.rarity) });
+    byId.set(c.pageid, normalizeWikiCard(c));
   }
   for (const c of incoming) {
-    const inc = { ...c, rarity: normalizeRarity(c.rarity) };
+    const inc = normalizeWikiCard(c);
     const prev = byId.get(c.pageid);
     if (prev) {
       const opened = prev.openedMskDate > inc.openedMskDate ? prev.openedMskDate : inc.openedMskDate;
@@ -15,6 +15,7 @@ export function mergeIntoCollection(existing: WikiCard[], incoming: WikiCard[]):
         ...inc,
         rarity: maxRarity(normalizeRarity(prev.rarity), normalizeRarity(inc.rarity)),
         openedMskDate: opened,
+        category: inc.category ?? prev.category,
       });
     } else {
       byId.set(c.pageid, inc);

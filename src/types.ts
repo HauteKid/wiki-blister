@@ -1,5 +1,16 @@
 export type CardRarity = "common" | "rare" | "epic" | "legendary" | "mythic";
 
+/** Тематическая категория по Wikidata P31 (см. `lib/cardCategory.ts`). */
+export type CardCategory =
+  | "person"
+  | "country"
+  | "place"
+  | "event"
+  | "culture"
+  | "science"
+  | "org"
+  | "other";
+
 export type WikiCard = {
   pageid: number;
   title: string;
@@ -10,6 +21,8 @@ export type WikiCard = {
   openedMskDate: string;
   /** Редкость; для старых записей без поля подразумевается common */
   rarity?: CardRarity;
+  /** Категория по P31; старые карточки без поля — «Разное» */
+  category?: CardCategory;
 };
 
 export type TodaysPack = {

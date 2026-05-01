@@ -586,6 +586,65 @@ img {
   font-size: 0.8rem;
 }
 
+/* Категория (Wikidata P31): плашка на превью, низ слева — не пересекается с W и редкостью */
+.wb-tcg__category-pill {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 2;
+  max-width: calc(100% - 12px);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: #f1f5f9;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid color-mix(in srgb, white 14%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.wb-tcg--zoom .wb-tcg__category-pill {
+  font-size: 0.62rem;
+  padding: 4px 9px;
+  left: 8px;
+  bottom: 8px;
+}
+
+.wb-tcg__category-pill--person {
+  border-color: color-mix(in srgb, #94a3b8 55%, transparent);
+}
+.wb-tcg__category-pill--country {
+  border-color: color-mix(in srgb, #38bdf8 45%, transparent);
+  color: #e0f2fe;
+}
+.wb-tcg__category-pill--place {
+  border-color: color-mix(in srgb, #4ade80 45%, transparent);
+  color: #ecfdf5;
+}
+.wb-tcg__category-pill--event {
+  border-color: color-mix(in srgb, #fb923c 50%, transparent);
+  color: #ffedd5;
+}
+.wb-tcg__category-pill--culture {
+  border-color: color-mix(in srgb, #c084fc 50%, transparent);
+  color: #f3e8ff;
+}
+.wb-tcg__category-pill--science {
+  border-color: color-mix(in srgb, #2dd4bf 45%, transparent);
+  color: #ccfbf1;
+}
+.wb-tcg__category-pill--org {
+  border-color: color-mix(in srgb, #fbbf24 45%, transparent);
+  color: #fffbeb;
+}
+.wb-tcg__category-pill--other {
+  border-color: color-mix(in srgb, #94a3b8 35%, transparent);
+  color: #cbd5e1;
+}
+
 .wb-tcg__ribbon {
   margin-top: 6px;
   padding: 5px 6px;

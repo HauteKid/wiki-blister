@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { CardRarity, WikiCard } from "../types";
+import { CATEGORY_LABEL, normalizeCardCategory } from "../lib/cardCategory";
 import { normalizeRarity, RARITY_LABEL } from "../lib/rarity";
 
 type Variant = "grid" | "zoom";
@@ -17,6 +18,7 @@ function rarityClass(r: CardRarity): string {
 
 export function CardTile({ card, variant = "grid", onActivate }: Props) {
   const rarity = normalizeRarity(card.rarity);
+  const category = normalizeCardCategory(card.category);
   const interactive = Boolean(onActivate) && variant === "grid";
 
   return (
@@ -50,6 +52,9 @@ export function CardTile({ card, variant = "grid", onActivate }: Props) {
           ) : (
             <div className="wb-tcg__art-placeholder">Нет иллюстрации</div>
           )}
+          <span className={`wb-tcg__category-pill wb-tcg__category-pill--${category}`}>
+            {CATEGORY_LABEL[category]}
+          </span>
         </div>
 
         <div className="wb-tcg__ribbon">
