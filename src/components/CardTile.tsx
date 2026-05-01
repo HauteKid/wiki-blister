@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
+import { useRef, useState } from "react";
 import type { CardRarity, WikiCard } from "../types";
 import { CATEGORY_LABEL, normalizeCardCategory } from "../lib/cardCategory";
+import { fetchAdminRarityExplanation } from "../lib/rarityExplain";
 import { normalizeRarity, RARITY_LABEL } from "../lib/rarity";
 
 type Variant = "grid" | "zoom";
@@ -10,37 +12,80 @@ type Props = {
   /** Сетка (по умолчанию) или крупный вид в lightbox */
   variant?: Variant;
   onActivate?: () => void;
+  /** Админ: при наведении показать, из чего складывается редкость */
+  showAdminRarityAudit?: boolean;
 };
 
 function rarityClass(r: CardRarity): string {
   return `wb-tcg--${r}`;
 }
 
-export function CardTile({ card, variant = "grid", onActivate }: Props) {
+export function CardTile({ card, variant = "grid", onActivate, showAdminRarityAudit = false }: Props) {
   const rarity = normalizeRarity(card.rarity);
   const category = normalizeCardCategory(card.category);
   const interactive = Boolean(onActivate) && variant === "grid";
+  const [auditText, setAuditText] = useState<string | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const auditReq = useRef(0);
+
+  const runAudit = () => {
+    if (!showAdminRarityAudit) return;
+    const id = ++auditReq.current;
+    setAuditLoading(true);
+    setAuditText(null);
+    void fetchAdminRarityExplanation(card)
+      .then((t) => {
+        if (auditReq.current === id) {
+          setAuditText(t);
+          setAuditLoading(false);
+        }
+      })
+      .catch(() => {
+        if (auditReq.current === id) {
+          setAuditText("Не удалось загрузить пояснение (сеть или API).");
+          setAuditLoading(false);
+        }
+      });
+  };
+
+  const clearAudit = () => {
+    auditReq.current += 1;
+    setAuditLoading(false);
+    setAuditText(null);
+  };
 
   return (
-    <article
-      className={`wb-tcg ${rarityClass(rarity)}${variant === "zoom" ? " wb-tcg--zoom" : ""}`}
-      style={{ "--wb-tcg-rarity": rarity } as CSSProperties}
-      onClick={interactive ? onActivate : undefined}
-      onKeyDown={
-        interactive
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onActivate?.();
-              }
-            }
-          : undefined
-      }
-      role={interactive ? "button" : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      aria-label={interactive ? `Открыть карточку: ${card.title}` : undefined}
+    <div
+      className={`wb-tcg-hover-wrap${showAdminRarityAudit ? " wb-tcg-hover-wrap--audit" : ""}`}
+      onMouseEnter={showAdminRarityAudit ? runAudit : undefined}
+      onMouseLeave={showAdminRarityAudit ? clearAudit : undefined}
     >
-      <div className="wb-tcg__frame">
+      {showAdminRarityAudit && (auditLoading || auditText) && (
+        <div className="wb-tcg__audit-tip" role="status">
+          {auditLoading && !auditText ? "Считаем редкость…" : auditText}
+        </div>
+      )}
+      <article
+        className={`wb-tcg ${rarityClass(rarity)}${variant === "zoom" ? " wb-tcg--zoom" : ""}${
+          showAdminRarityAudit ? " wb-tcg--admin-audit" : ""
+        }`}
+        style={{ "--wb-tcg-rarity": rarity } as CSSProperties}
+        onClick={interactive ? onActivate : undefined}
+        onKeyDown={
+          interactive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onActivate?.();
+                }
+              }
+            : undefined
+        }
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-label={interactive ? `Открыть карточку: ${card.title}` : undefined}
+      >
+        <div className="wb-tcg__frame">
         <span className="wb-tcg__wiki-badge" title="Википедия" aria-hidden>
           W
         </span>
@@ -78,6 +123,7 @@ export function CardTile({ card, variant = "grid", onActivate }: Props) {
           Читать статью →
         </a>
       </div>
-    </article>
+      </article>
+    </div>
   );
 }

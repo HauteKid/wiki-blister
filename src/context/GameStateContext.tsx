@@ -14,6 +14,7 @@ type GameStateContextValue = {
   error: string | null;
   clearPackIfStaleForMskDate: (mskToday: string) => Promise<void>;
   afterOpenBlister: (mskDate: string, cards: WikiCard[]) => Promise<void>;
+  setCardFavorite: (pageid: number, favorite: boolean) => Promise<void>;
   resetAllProgress: () => Promise<void>;
 };
 
@@ -170,6 +171,32 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
     if (upErr) setError(upErr.message);
   }, [user?.id]);
 
+  const setCardFavorite = useCallback(async (pageid: number, favorite: boolean) => {
+    if (!user) return;
+    const db = requireSupabase();
+    setError(null);
+    const applyFav = (c: WikiCard) => (c.pageid === pageid ? { ...c, favorite } : c);
+    const nextColl = collectionRef.current.map(applyFav);
+    const pack = packRef.current;
+    const nextPack = pack
+      ? { ...pack, cards: pack.cards.map(applyFav) }
+      : null;
+    const { error: upErr } = await db
+      .from("user_state")
+      .update({
+        collection: nextColl,
+        todays_pack: nextPack,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
+    if (upErr) {
+      setError(upErr.message);
+      return;
+    }
+    setCollection(nextColl);
+    setTodaysPack(nextPack);
+  }, [user?.id]);
+
   const afterOpenBlister = useCallback(async (mskDate: string, cards: WikiCard[]) => {
     if (!user) return;
     const db = requireSupabase();
@@ -221,9 +248,19 @@ export function GameStateProvider({ children }: { children: React.ReactNode }) {
       error,
       clearPackIfStaleForMskDate,
       afterOpenBlister,
+      setCardFavorite,
       resetAllProgress,
     }),
-    [collection, todaysPack, loading, error, clearPackIfStaleForMskDate, afterOpenBlister, resetAllProgress],
+    [
+      collection,
+      todaysPack,
+      loading,
+      error,
+      clearPackIfStaleForMskDate,
+      afterOpenBlister,
+      setCardFavorite,
+      resetAllProgress,
+    ],
   );
 
   return <GameStateContext.Provider value={value}>{children}</GameStateContext.Provider>;

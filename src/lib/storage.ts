@@ -14,8 +14,15 @@ export function mergeIntoCollection(existing: WikiCard[], incoming: WikiCard[]):
       byId.set(c.pageid, {
         ...inc,
         rarity: maxRarity(normalizeRarity(prev.rarity), normalizeRarity(inc.rarity)),
+        intrinsicRarity: maxRarity(
+          normalizeRarity(prev.intrinsicRarity ?? prev.rarity),
+          normalizeRarity(inc.intrinsicRarity ?? inc.rarity),
+        ),
         openedMskDate: opened,
         category: inc.category ?? prev.category,
+        otherSubcategory: inc.otherSubcategory ?? prev.otherSubcategory,
+        pageQuality: inc.pageQuality ?? prev.pageQuality,
+        favorite: inc.favorite !== undefined ? Boolean(inc.favorite) : Boolean(prev.favorite),
       });
     } else {
       byId.set(c.pageid, inc);

@@ -4,9 +4,12 @@ import { CardTile } from "../components/CardTile";
 import { useAuth } from "../context/AuthContext";
 import { useGameState } from "../context/GameStateContext";
 import { canBypassDailyBlisterLimit } from "../lib/blisterAdmin";
+import { CATEGORY_LABEL } from "../lib/cardCategory";
 import { getMskCalendarDate, formatCountdown, msUntilNextMskMidnight } from "../lib/moscow";
-import type { WikiCard } from "../types";
+import type { CardCategory, WikiCard } from "../types";
 import { drawBlisterCards } from "../lib/wikipedia";
+
+const CATEGORY_ORDER: CardCategory[] = ["person", "country", "place", "event", "culture", "science", "org", "other"];
 
 export function BlisterPage() {
   const { user } = useAuth();
@@ -17,6 +20,7 @@ export function BlisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [countdownMs, setCountdownMs] = useState(() => msUntilNextMskMidnight());
   const [zoomed, setZoomed] = useState<WikiCard | null>(null);
+  const [adminCategory, setAdminCategory] = useState<"all" | CardCategory>("all");
 
   const pack = useMemo(() => {
     if (!todaysPack || todaysPack.mskDate !== mskToday) return null;
@@ -41,13 +45,13 @@ export function BlisterPage() {
 
   const openedToday = todaysPack?.mskDate === mskToday;
 
-  const openBlister = async (adminBypass = false) => {
+  const openBlister = async (adminBypass = false, forcedCategory?: CardCategory) => {
     setError(null);
     const today = getMskCalendarDate();
     if (!adminBypass && todaysPack?.mskDate === today) return;
     setLoading(true);
     try {
-      const cards = await drawBlisterCards(today);
+      const cards = await drawBlisterCards(today, forcedCategory);
       await afterOpenBlister(today, cards);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Что-то пошло не так");
@@ -95,16 +99,36 @@ export function BlisterPage() {
         <p className="wb-status-ok">Ты уже открыл сегодняшний пак. Завтра после полуночи по Москве — новый.</p>
       )}
 
-      {isBlisterAdmin && openedToday && (
-        <button
-          type="button"
-          className="wb-btn wb-btn--secondary wb-btn--block"
-          style={{ marginBottom: 20 }}
-          onClick={() => void openBlister(true)}
-          disabled={loading}
-        >
-          {loading ? "Выдаём…" : "Админ: выдать новый блистер сегодня"}
-        </button>
+      {isBlisterAdmin && (
+        <section className="wb-panel">
+          <p className="wb-muted" style={{ margin: "0 0 8px" }}>
+            Админ-выдача
+          </p>
+          <label className="wb-form-label" style={{ marginBottom: 10 }}>
+            <span>Категория блистера</span>
+            <select
+              className="wb-input"
+              value={adminCategory}
+              onChange={(e) => setAdminCategory(e.target.value as "all" | CardCategory)}
+              disabled={loading}
+            >
+              <option value="all">Все категории (обычная выдача)</option>
+              {CATEGORY_ORDER.map((cat) => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_LABEL[cat]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="wb-btn wb-btn--secondary wb-btn--block"
+            onClick={() => void openBlister(true, adminCategory === "all" ? undefined : adminCategory)}
+            disabled={loading}
+          >
+            {loading ? "Выдаём…" : openedToday ? "Админ: выдать новый блистер" : "Админ: выдать блистер"}
+          </button>
+        </section>
       )}
 
       {displayError && (
@@ -116,12 +140,17 @@ export function BlisterPage() {
       {pack && pack.length > 0 && (
         <div className="wb-card-grid">
           {pack.map((c) => (
-            <CardTile key={c.pageid} card={c} onActivate={() => setZoomed(c)} />
+            <CardTile
+              key={c.pageid}
+              card={c}
+              onActivate={() => setZoomed(c)}
+              showAdminRarityAudit={isBlisterAdmin}
+            />
           ))}
         </div>
       )}
 
-      <CardLightbox card={zoomed} onClose={() => setZoomed(null)} />
+      <CardLightbox card={zoomed} onClose={() => setZoomed(null)} showAdminRarityAudit={isBlisterAdmin} />
     </div>
   );
 }

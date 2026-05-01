@@ -1,11 +1,22 @@
-import type { WikiCard } from "../types";
+import type { CardCategory, WikiCard } from "../types";
 import {
   BLISTER_CANDIDATE_TARGET,
   BLISTER_CARD_COUNT,
+  selectBlisterPack,
   selectBlisterPackWithMandatoryNaturalRare,
 } from "./blisterPack";
-import { categoryFromP31Qids, fetchWikidataBlisterMetadata } from "./cardCategory";
-import { normalizeRarity, rarityFromNotability, rarityTier } from "./rarity";
+import {
+  categoryFromP31Qids,
+  fetchWikidataBlisterMetadata,
+  inferOtherSubcategory,
+  normalizeWikidataItemId,
+} from "./cardCategory";
+import {
+  normalizeRarity,
+  pageQualityFromExtractCharCount,
+  rarityFromNotability,
+  rarityTier,
+} from "./rarity";
 
 const RU_WIKI = "https://ru.wikipedia.org";
 const PAGEVIEWS_BASE = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/ru.wikipedia/all-access";
@@ -110,14 +121,43 @@ async function applyWikidataToCandidates(
     const wb = c._wikibaseItem;
     const rank = rankByPageId.get(c.pageid) ?? 999_999;
     const views = viewsByPageId.get(c.pageid) ?? 0;
+    const pq = pageQualityFromExtractCharCount((c.extract ?? "").length);
+    c.pageQuality = pq;
     if (wb) {
-      const m = meta.get(wb) ?? { p31: [], sitelinks: 0 };
+      const wbKey = normalizeWikidataItemId(wb);
+      const m = meta.get(wbKey) ?? meta.get(wb) ?? { p31: [], sitelinks: 0 };
       const cat = categoryFromP31Qids(m.p31);
       c.category = cat;
-      c.rarity = rarityFromNotability(cat, m.sitelinks, rank, views, true);
+      const intrinsic = rarityFromNotability(
+        cat,
+        m.sitelinks,
+        rank,
+        views,
+        true,
+        m.p31,
+        m.claims,
+        wbKey,
+        pq,
+      );
+      c.intrinsicRarity = intrinsic;
+      c.rarity = intrinsic;
+      c.otherSubcategory = cat === "other" ? inferOtherSubcategory(m.p31) : undefined;
     } else {
       c.category = "other";
-      c.rarity = rarityFromNotability("other", undefined, rank, views, false);
+      const intrinsic = rarityFromNotability(
+        "other",
+        undefined,
+        rank,
+        views,
+        false,
+        [],
+        undefined,
+        undefined,
+        pq,
+      );
+      c.intrinsicRarity = intrinsic;
+      c.rarity = intrinsic;
+      c.otherSubcategory = inferOtherSubcategory([]);
     }
   }
 }
@@ -145,12 +185,18 @@ async function fetchSummary(title: string): Promise<CardWithWikibase | null> {
 }
 
 const BLISTER_MAX_TRIES = 140;
+/** Сколько статей подряд подгружаем перед одним запросом Wikidata (режим «только эта категория»). */
+const FORCED_CATEGORY_BATCH = 14;
+
+function countInCategory(candidates: WikiCard[], cat: CardCategory): number {
+  return candidates.filter((c) => c.category === cat).length;
+}
 
 /**
  * Дневной блистер: {@link BLISTER_CARD_COUNT} карточек.
  * Кандидаты из топа → Wikidata (категория + sitelinks для редкости) → отбор пака.
  */
-export async function drawBlisterCards(mskDate: string): Promise<WikiCard[]> {
+export async function drawBlisterCards(mskDate: string, forcedCategory?: CardCategory): Promise<WikiCard[]> {
   const pool = await fetchPopularArticlePool();
   const shuffled = shuffle(pool);
   const candidates: CardWithWikibase[] = [];
@@ -158,23 +204,56 @@ export async function drawBlisterCards(mskDate: string): Promise<WikiCard[]> {
   const rankByPageId = new Map<number, number>();
   const viewsByPageId = new Map<number, number>();
 
-  for (const entry of shuffled) {
-    if (candidates.length >= BLISTER_CANDIDATE_TARGET) break;
-    if (tried.has(entry.title)) continue;
-    tried.add(entry.title);
-    const card = await fetchSummary(entry.title);
-    if (card) {
-      card.openedMskDate = mskDate;
-      rankByPageId.set(card.pageid, entry.rank);
-      viewsByPageId.set(card.pageid, entry.views);
-      candidates.push(card);
+  async function tryAddFromEntries(entries: PopularArticle[]): Promise<boolean> {
+    let added = false;
+    for (const entry of entries) {
+      if (tried.has(entry.title)) continue;
+      tried.add(entry.title);
+      const card = await fetchSummary(entry.title);
+      if (card) {
+        card.openedMskDate = mskDate;
+        rankByPageId.set(card.pageid, entry.rank);
+        viewsByPageId.set(card.pageid, entry.views);
+        candidates.push(card);
+        added = true;
+      }
     }
-    if (tried.size > BLISTER_MAX_TRIES && candidates.length >= BLISTER_CARD_COUNT) break;
+    return added;
   }
 
-  await applyWikidataToCandidates(candidates, rankByPageId, viewsByPageId);
+  if (forcedCategory != null) {
+    const byRank = [...pool].sort((a, b) => a.rank - b.rank);
+    const queue: PopularArticle[] = [...shuffled, ...byRank];
+    let qi = 0;
+    while (countInCategory(candidates, forcedCategory) < BLISTER_CANDIDATE_TARGET && qi < queue.length) {
+      const batch: PopularArticle[] = [];
+      while (batch.length < FORCED_CATEGORY_BATCH && qi < queue.length) {
+        batch.push(queue[qi]!);
+        qi += 1;
+      }
+      await tryAddFromEntries(batch);
+      if (candidates.length === 0) continue;
+      await applyWikidataToCandidates(candidates, rankByPageId, viewsByPageId);
+    }
+  } else {
+    for (const entry of shuffled) {
+      if (candidates.length >= BLISTER_CANDIDATE_TARGET) break;
+      if (tried.has(entry.title)) continue;
+      tried.add(entry.title);
+      const card = await fetchSummary(entry.title);
+      if (card) {
+        card.openedMskDate = mskDate;
+        rankByPageId.set(card.pageid, entry.rank);
+        viewsByPageId.set(card.pageid, entry.views);
+        candidates.push(card);
+      }
+      if (tried.size > BLISTER_MAX_TRIES && candidates.length >= BLISTER_CARD_COUNT) break;
+    }
 
-  if (!packHasRareOrBetter(candidates)) {
+    await applyWikidataToCandidates(candidates, rankByPageId, viewsByPageId);
+  }
+
+  if (forcedCategory == null && !packHasRareOrBetter(candidates)) {
     const byRank = [...pool].sort((a, b) => a.rank - b.rank);
     let guard = 0;
     while (!packHasRareOrBetter(candidates) && guard < 80) {
@@ -202,13 +281,24 @@ export async function drawBlisterCards(mskDate: string): Promise<WikiCard[]> {
     throw new Error("Не хватило подходящих статей для полного блистера. Попробуйте ещё раз.");
   }
 
-  if (!packHasRareOrBetter(candidates)) {
+  const sourceCandidates =
+    forcedCategory == null ? candidates : candidates.filter((c) => c.category === forcedCategory);
+
+  if (sourceCandidates.length < BLISTER_CARD_COUNT) {
+    throw new Error(`Не хватило карточек категории «${forcedCategory}» для полного блистера.`);
+  }
+
+  if (forcedCategory == null && !packHasRareOrBetter(sourceCandidates)) {
     throw new Error(
       "Не удалось включить в пак статью с редкостью не ниже «Редкая». Попробуйте позже.",
     );
   }
 
-  const picked = selectBlisterPackWithMandatoryNaturalRare(candidates, rankByPageId) as CardWithWikibase[];
+  const picked = (
+    forcedCategory == null
+      ? selectBlisterPackWithMandatoryNaturalRare(sourceCandidates, rankByPageId)
+      : selectBlisterPack(sourceCandidates, rankByPageId, BLISTER_CARD_COUNT)
+  ) as CardWithWikibase[];
 
   for (const c of picked) {
     delete c._wikibaseItem;

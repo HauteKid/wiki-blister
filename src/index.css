@@ -182,6 +182,71 @@ img {
   font-size: 0.875rem;
 }
 
+.wb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 4px;
+  border-radius: var(--wb-radius-lg);
+  background: color-mix(in srgb, var(--wb-surface) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wb-border) 80%, white);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+}
+
+.wb-tab {
+  flex: 1 1 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--wb-radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--wb-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.wb-tab:hover {
+  color: var(--wb-text);
+  background: color-mix(in srgb, white 6%, transparent);
+}
+
+.wb-tab--active {
+  color: var(--wb-text);
+  background: color-mix(in srgb, var(--wb-primary) 18%, var(--wb-surface));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 10%, transparent),
+    0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.wb-tab__count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wb-bg-a) 50%, transparent);
+  color: var(--wb-text-muted);
+}
+
+.wb-tab--active .wb-tab__count {
+  background: color-mix(in srgb, var(--wb-primary) 25%, transparent);
+  color: var(--wb-text);
+}
+
+.wb-tab:focus-visible {
+  outline: 2px solid var(--wb-primary);
+  outline-offset: 2px;
+}
+
 .wb-panel {
   background: color-mix(in srgb, var(--wb-surface) 72%, transparent);
   backdrop-filter: blur(var(--wb-blur));
@@ -464,6 +529,43 @@ img {
   width: 100%;
   margin: 0 auto;
   filter: drop-shadow(0 12px 40px rgba(0, 0, 0, 0.55));
+}
+
+/* Обёртка: подсказка и карточка в одной зоне hover, чтобы курсор можно было вести на текст */
+.wb-tcg-hover-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.wb-tcg-hover-wrap--audit:hover {
+  z-index: 45;
+}
+
+/* Админ: пояснение редкости при наведении */
+.wb-tcg__audit-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 10px);
+  z-index: 25;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--wb-text);
+  white-space: pre-wrap;
+  text-align: left;
+  background: color-mix(in srgb, var(--wb-bg-a) 92%, var(--wb-surface));
+  border: 1px solid color-mix(in srgb, var(--wb-border) 80%, white);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.wb-tcg--zoom .wb-tcg__audit-tip {
+  bottom: auto;
+  top: 0;
+  transform: translateY(-100%);
+  margin-top: -10px;
 }
 
 .wb-tcg__frame {
@@ -886,11 +988,63 @@ img {
 }
 
 .wb-lightbox__inner {
+  position: relative;
   max-height: min(92dvh, 900px);
   overflow-y: auto;
   width: 100%;
   max-width: 400px;
   animation: wb-lightbox-pop 0.22s ease-out;
+}
+
+.wb-lightbox__toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.wb-lightbox__toolbar > * {
+  pointer-events: auto;
+}
+
+.wb-lightbox__favorite {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--wb-text) 88%, var(--wb-primary));
+  background: color-mix(in srgb, var(--wb-surface) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.wb-lightbox__favorite:hover {
+  color: var(--wb-primary);
+  background: color-mix(in srgb, var(--wb-surface) 94%, white);
+}
+
+.wb-lightbox__favorite--on {
+  color: var(--wb-primary);
+  background: color-mix(in srgb, var(--wb-primary) 22%, var(--wb-surface));
+}
+
+.wb-lightbox__favorite:focus-visible {
+  outline: 2px solid var(--wb-primary);
+  outline-offset: 2px;
+}
+
+/* Подсказка редкости уходит вверх от карточки — не обрезать */
+.wb-lightbox__inner:has(.wb-tcg-hover-wrap--audit) {
+  overflow: visible;
 }
 
 @keyframes wb-lightbox-pop {
@@ -940,4 +1094,68 @@ img {
 .wb-code {
   color: var(--wb-cyan);
   font-size: 0.9em;
+}
+
+.wb-audit-h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--wb-text);
+}
+
+.wb-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wb-audit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--wb-border) 75%, white);
+  background: color-mix(in srgb, var(--wb-surface) 60%, transparent);
+  font-size: 0.92rem;
+}
+
+.wb-audit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wb-audit-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wb-audit-mini {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--wb-border) 70%, white);
+  background: color-mix(in srgb, var(--wb-surface) 45%, transparent);
+  padding: 8px;
+  min-height: 62px;
+}
+
+.wb-audit-mini__title {
+  margin: 0;
+  color: var(--wb-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wb-audit-mini__meta {
+  margin: 6px 0 0;
+  color: var(--wb-text-muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
 }

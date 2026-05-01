@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AppShell } from "./layout/AppShell";
 import { BlisterPage } from "./pages/BlisterPage";
+import { CardAuditPage } from "./pages/CardAuditPage";
 import { CollectionPage } from "./pages/CollectionPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -21,6 +22,7 @@ export default function App() {
               <Route element={<AppShell />}>
                 <Route path="/" element={<BlisterPage />} />
                 <Route path="/collection" element={<CollectionPage />} />
+                <Route path="/audit" element={<CardAuditPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>

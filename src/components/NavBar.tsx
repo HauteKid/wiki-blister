@@ -1,8 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { canBypassDailyBlisterLimit } from "../lib/blisterAdmin";
 
 export function NavBar() {
   const { user } = useAuth();
+  const isBlisterAdmin = canBypassDailyBlisterLimit(user?.email);
   const shortEmail = user?.email ? (user.email.length > 22 ? `${user.email.slice(0, 20)}…` : user.email) : "";
 
   return (
@@ -16,6 +18,11 @@ export function NavBar() {
       <NavLink to="/profile" className={({ isActive }) => `wb-nav-link${isActive ? " wb-nav-link--active" : ""}`}>
         Профиль
       </NavLink>
+      {isBlisterAdmin && (
+        <NavLink to="/audit" className={({ isActive }) => `wb-nav-link${isActive ? " wb-nav-link--active" : ""}`}>
+          Анализ
+        </NavLink>
+      )}
       {shortEmail && (
         <span className="wb-nav-email" title={user?.email ?? undefined}>
           {shortEmail}

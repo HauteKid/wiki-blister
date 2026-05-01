@@ -1,4 +1,4 @@
-import type { WikiCard } from "../types";
+import type { CardRarity, WikiCard } from "../types";
 import { normalizeCardCategory } from "./cardCategory";
 import { normalizeRarity, rarityTier } from "./rarity";
 
@@ -14,6 +14,17 @@ export const BLISTER_CANDIDATE_TARGET = 16;
 /** Сколько «якорных» слотов резервируем под самые просматриваемые статьи дня (лучший ранг). */
 export const BLISTER_ANCHOR_TOP = 2;
 
+/**
+ * Веса выпадения в пуле (ТЗ): редкие ступени попадают в пак реже, даже при высокой intrinsic.
+ */
+export const DROP_WEIGHTS: Record<CardRarity, number> = {
+  common: 1000,
+  rare: 300,
+  epic: 80,
+  legendary: 20,
+  mythic: 5,
+};
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -23,11 +34,46 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+function intrinsicTier(c: WikiCard): CardRarity {
+  return normalizeRarity(c.intrinsicRarity ?? c.rarity);
+}
+
+function pickWeightedIndex(weights: number[]): number {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (sum <= 0) return Math.floor(Math.random() * weights.length);
+  let r = Math.random() * sum;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i]!;
+    if (r <= 0) return i;
+  }
+  return weights.length - 1;
+}
+
+/** Вес слота: вес редкости × приоритет ранга топа (лучший ранг — заметно выше). */
+function slotWeight(c: WikiCard, rankByPageId: Map<number, number>): number {
+  const rank = rankByPageId.get(c.pageid) ?? 999_999;
+  const dw = DROP_WEIGHTS[intrinsicTier(c)];
+  const rankBoost = 1 / Math.sqrt(rank);
+  return dw * rankBoost;
+}
+
+function pickWeightedWithoutReplacement(candidates: WikiCard[], rankByPageId: Map<number, number>, n: number): WikiCard[] {
+  const pool = [...candidates];
+  const out: WikiCard[] = [];
+  for (let k = 0; k < n && pool.length > 0; k++) {
+    const w = pool.map((c) => slotWeight(c, rankByPageId));
+    const idx = pickWeightedIndex(w);
+    out.push(pool[idx]!);
+    pool.splice(idx, 1);
+  }
+  return out;
+}
+
 /**
- * Собирает пак из кандидатов:
- * 1) якоря — лучшие по рангу (обычно дают заметную редкость);
- * 2) по одной лучшей карточке из каждой категории среди оставшихся (разнообразие коллекции);
- * 3) добор по рангу до BLISTER_CARD_COUNT.
+ * Собирает пак из кандидатов (ТЗ: веса выпадения + ранг как мягкий приоритет):
+ * 1) якоря — взвешенный выбор среди лучших по рангу;
+ * 2) по одной карточке из каждой категории (разнообразие);
+ * 3) добор взвешенно до BLISTER_CARD_COUNT.
  */
 export function selectBlisterPack(
   candidates: WikiCard[],
@@ -45,12 +91,15 @@ export function selectBlisterPack(
   const used = new Set<number>();
   const anchorSlots = Math.min(BLISTER_ANCHOR_TOP, size);
 
-  for (const c of sorted) {
-    if (out.length >= anchorSlots || out.length >= size) break;
-    if (!used.has(c.pageid)) {
-      out.push(c);
-      used.add(c.pageid);
-    }
+  const topBand = sorted.slice(0, Math.min(sorted.length, Math.max(anchorSlots * 4, 8)));
+  for (let a = 0; a < anchorSlots && topBand.length > 0; a++) {
+    const pool = topBand.filter((c) => !used.has(c.pageid));
+    if (pool.length === 0) break;
+    const w = pool.map((c) => slotWeight(c, rankByPageId));
+    const idx = pickWeightedIndex(w);
+    const pick = pool[idx]!;
+    out.push(pick);
+    used.add(pick.pageid);
   }
 
   const rest = sorted.filter((c) => !used.has(c.pageid));
@@ -72,42 +121,40 @@ export function selectBlisterPack(
 
   for (const cat of catOrder) {
     if (out.length >= size) break;
-    const list = byCat.get(cat)!;
-    const pick = list.find((c) => !used.has(c.pageid));
-    if (pick) {
-      out.push(pick);
-      used.add(pick.pageid);
-    }
+    const list = byCat.get(cat)!.filter((c) => !used.has(c.pageid));
+    if (list.length === 0) continue;
+    const w = list.map((c) => slotWeight(c, rankByPageId));
+    const idx = pickWeightedIndex(w);
+    const pick = list[idx]!;
+    out.push(pick);
+    used.add(pick.pageid);
   }
 
-  for (const c of sorted) {
-    if (out.length >= size) break;
-    if (!used.has(c.pageid)) {
-      out.push(c);
-      used.add(c.pageid);
-    }
+  const remaining = sorted.filter((c) => !used.has(c.pageid));
+  const need = size - out.length;
+  if (need > 0) {
+    out.push(...pickWeightedWithoutReplacement(remaining, rankByPageId, need));
   }
 
   return out.slice(0, size);
 }
 
 /**
- * Один слот в паке — карточка с редкостью ≥ «Редкая» по уже посчитанной шкале (sitelinks / топ без WD).
- * Остальные слоты — как в {@link selectBlisterPack}.
+ * Один слот — карточка с intrinsic ≥ «Редкая»; остальное — {@link selectBlisterPack}.
  */
 export function selectBlisterPackWithMandatoryNaturalRare(
   candidates: WikiCard[],
   rankByPageId: Map<number, number>,
 ): WikiCard[] {
-  const rankOf = (c: WikiCard) => rankByPageId.get(c.pageid) ?? 999_999;
   const naturalRarePlus = candidates.filter(
-    (c) => rarityTier(normalizeRarity(c.rarity)) >= rarityTier("rare"),
+    (c) => rarityTier(intrinsicTier(c)) >= rarityTier("rare"),
   );
   if (naturalRarePlus.length === 0) {
     throw new Error("blister: нет кандидата с естественной редкостью не ниже «Редкая»");
   }
-  naturalRarePlus.sort((a, b) => rankOf(a) - rankOf(b));
-  const mandatory = naturalRarePlus[0]!;
+  const w = naturalRarePlus.map((c) => slotWeight(c, rankByPageId));
+  const idx = pickWeightedIndex(w);
+  const mandatory = naturalRarePlus[idx]!;
   const rest = candidates.filter((c) => c.pageid !== mandatory.pageid);
   if (rest.length < BLISTER_CARD_COUNT - 1) {
     throw new Error("blister: недостаточно кандидатов после резерва под гарантированную редкую");
